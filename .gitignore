@@ -2,6 +2,7 @@
 dev.sh
 /.venv/
 /__pycache__/
+/source/__pycache__/
 
 # Pycharm
 /.idea/
