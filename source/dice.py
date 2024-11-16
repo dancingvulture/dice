@@ -1,13 +1,13 @@
-"""Roll Dice!"""
+"""A Module containing some dice rollers."""
 
 
 import re
 import math
 import operator
-from random import randint
+import random
+import numpy as np
 
-
-class DiceRoller:
+class Roller:
     """
     A die roller that can take readable string inputs ('1d20', '3d6', etc.)
     into its rolling methods (sum or pool). It uses the following syntax:
@@ -19,7 +19,22 @@ class DiceRoller:
         - [+] advantage, one advantage for every + symbol.
         - [-] disadvantage, one disadvantage for every - symbol.
     """
-    def __init__(self):
+    random_generators = {}
+    def __init__(self, randint_method=None, advantage_method=None):
+        # PREFERENCES
+        random_generators = {
+            None: random.randint,       # Default.
+            "numpy": np.random.randint  # 5x slower than python's built-in.
+        }
+        self._randint = random_generators[randint_method]
+
+        advantage_methods = {
+            None: "Not implemented",     # Default.
+            "double": "Not implemented"  # Roll all n times, take best.
+        }
+        self._advantage_method = advantage_methods[advantage_method]
+
+        # CONSTANTS
         # Generate the regex functions used to parse dice inputs.
         patterns = {
             "count": "^\\d+",
@@ -33,7 +48,6 @@ class DiceRoller:
             self._regex_funcs[parameter] = re.compile(pattern).findall
 
         # A few hardcoded attributes that will be needed to validate dice inputs.
-        self._required_parameter = ("count", "sides")
         self._validation_args = {
             "count": ((operator.gt, 1, Exception), (operator.ne, 1, False)),
             "sides": ((operator.ne, 1, Exception),),
@@ -123,5 +137,10 @@ class DiceRoller:
         return int("".join(search))
 
 
-# Advantage/disadvantage default implementation == if you have n adv/dis then you roll
-# n more dice of the same type, and keep the highest/lowest n.
+class FastRoller(Roller):
+    """
+    A diceroller that parses dice once during init, for use explicitly in
+    programs that would loop a large number of times, rolling the same type of
+    dice repeatedly. Going through the parsing phase every time would be
+    wasteful. I wonder if it'll be a lot faster?
+    """
