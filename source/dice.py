@@ -48,7 +48,7 @@ class Roller:
             self._regex_funcs[parameter] = re.compile(pattern).findall
 
         # A few hardcoded attributes that will be needed to validate dice inputs.
-        self._validation_args = {
+        self._result_validation_args = {
             "count": ((operator.gt, 1, Exception), (operator.ne, 1, False)),
             "sides": ((operator.ne, 1, Exception),),
             "exploding": ((operator.gt, 1, Exception), (operator.ne, 1, False)),
@@ -75,12 +75,16 @@ class Roller:
         }
 
     def pool(self, dice_input: str) -> list[int]:
-        """Roll the dice, get the result as a list."""
+        """
+        Roll the dice, get the result as a list.
+        """
         dice = self._parse_dice(dice_input)
         return self._roll(*dice.values())
 
     def sum(self, dice_input: str) -> int:
-        """Roll the dice, then add them all together."""
+        """
+        Roll the dice, then add them all together.
+        """
         dice = self._parse_dice(dice_input)
         return sum(self._roll(*dice.values()))
 
@@ -89,7 +93,9 @@ class Roller:
         pass
 
     def _parse_dice(self, dice_input: str) -> dict:
-        """Extract information from a dice-string input."""
+        """
+        Extract information from a dice-string input.
+        """
         # First we do a regex search for each parameter.
         search_results = {}
         for parameter, findall in self._regex_funcs.items():
@@ -100,8 +106,11 @@ class Roller:
         # they used.
         validation_results = {}
         for parameter, result in search_results.items():
-            validation_results[parameter] = self._is_valid(parameter, result)
+            validation_results[parameter] = self._result_is_valid(parameter, result)
 
+        # Now that we know the search results are valid, we get the values
+        # they represent for our dice using each parameter's associated
+        # function on its search result.
         dice = {}
         for parameter, is_valid in validation_results.items():
             search_result = search_results[parameter]
@@ -110,9 +119,13 @@ class Roller:
 
             dice[parameter] = func(search_result) if is_valid else default
 
+        # Now that we know our dice values, we check them to make sure
+        # No illegal values are present.
+        self._values_are_valid(dice["sides"], dice["count"], dice["exploding"])
+
         return dice
 
-    def _is_valid(self, parameter: str, search_result: list[str]) -> bool:
+    def _result_is_valid(self, parameter: str, search_result: list[str]) -> bool:
         """
         Search results (of the regex search) are validated by comparing their
         length to a series of requirements and is_invalid comparison function
@@ -122,7 +135,7 @@ class Roller:
         is raised (in the case of a syntax violating input or a missing
          """
         length = len(search_result)
-        for is_invalid, requirement, consequence in self._validation_args[parameter]:
+        for is_invalid, requirement, consequence in self._result_validation_args[parameter]:
             if is_invalid(length, requirement):
                 if consequence is Exception:
                     raise ValueError(f"Invalid search_result length for {parameter}:\n"
@@ -131,11 +144,25 @@ class Roller:
                     return False
         return True
 
+    @staticmethod
+    def _values_are_valid(sides: int, count: int, exploding: int | float) -> None:
+        """
+        Raises an exception if the dice parameters sides, count, or exploding
+        have fatal issues with their values.
+        """
+        if sides <= 0:
+            raise ValueError(f"sides must be greater than zero: {sides=}")
+        elif count <= 0:
+            raise ValueError(f"count must be greater than zero: {count=}")
+        elif exploding <= 1:
+            raise ValueError(f"Exploding value must be greater than 1: {exploding=}")
 
     @staticmethod
     def _extract_int(substring: str) -> int:
-        """Extracts all numerical characters, in the order they appear, then
-        concatenates and runs the int() function."""
+        """
+        Extracts all numerical characters, in the order they appear, then
+        concatenates and runs the int() function.
+        """
         regex = re.compile("\\d")
         search = regex.findall(substring)
         return int("".join(search))
