@@ -1,0 +1,8 @@
+# Local developer files
+dev.sh
+/.venv/
+/__pycache__/
+
+# Pycharm
+/.idea/
+
