@@ -47,7 +47,8 @@ class Roller:
         for parameter, pattern in patterns.items():
             self._regex_funcs[parameter] = re.compile(pattern).findall
 
-        # A few hardcoded attributes that will be needed to validate dice inputs.
+        # A few hardcoded attributes that will be needed to validate regex
+        # search results.
         self._result_validation_args = {
             "count": ((operator.gt, 1, Exception), (operator.ne, 1, False)),
             "sides": ((operator.ne, 1, Exception),),
