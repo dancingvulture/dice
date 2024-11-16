@@ -75,14 +75,18 @@ class Roller:
         }
 
     def pool(self, dice_input: str) -> list[int]:
+        """Roll the dice, get the result as a list."""
         dice = self._parse_dice(dice_input)
-        for parameter, value in dice.items():
-            print(f"{parameter}: {value}")
+        return self._roll(*dice.values())
 
     def sum(self, dice_input: str) -> int:
+        """Roll the dice, then add them all together."""
         dice = self._parse_dice(dice_input)
-        for parameter, value in dice.items():
-            print(f"{parameter}: {value}")
+        return sum(self._roll(*dice.values()))
+
+    def _roll(self, count: int, sides: int, exploding: int | float,
+              advantage: int, disadvantage: int) -> list[int]:
+        pass
 
     def _parse_dice(self, dice_input: str) -> dict:
         """Extract information from a dice-string input."""
