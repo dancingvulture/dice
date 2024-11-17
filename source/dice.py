@@ -1,47 +1,52 @@
 """A Module containing some dice rollers."""
 
 
-import re
 import math
 import operator
 import random
+import re
+
 import numpy as np
+
 
 class Roller:
     """
     A die roller that can take readable string inputs ('1d20', '3d6', etc.)
     into its rolling methods (sum or pool). It uses the following syntax:
-    [N]dS[eX][+][-]
+    [N]dS[eX][^][v]
         - Optional parameters are bracketed.
         - [N] Number of dice to roll, if not entered it default to 1.
         - [eX] exploding dice, where X is the number a result must be equal to
           or greater than in order to explode.
-        - [+] advantage, one advantage for every + symbol.
-        - [-] disadvantage, one disadvantage for every - symbol.
+        - [^] advantage, one advantage for every + symbol.
+        - [v] disadvantage, one disadvantage for every - symbol.
+        - [eX] and [^v] are mutually exclusive, rolling with both is not
+        - currently supported.
     """
-    random_generators = {}
     def __init__(self, randint_method=None, advantage_method=None):
         # PREFERENCES
         random_generators = {
-            None: random.randint,       # Default.
-            "numpy": np.random.randint  # 5x slower than python's built-in.
+            None: lambda c, s: [random.randint(1, s) for _ in range(c)],
+            "numpy": lambda c, s: list(np.random.randint(1, s, c))
         }
-        self._randint = random_generators[randint_method]
+        self._basic_roll = random_generators[randint_method]
 
         advantage_methods = {
-            None: "Not implemented",     # Default.
-            "double": "Not implemented"  # Roll all n times, take best.
+            None: self._add_dice_adv,
+            "roll all": self._roll_all_adv,
         }
-        self._advantage_method = advantage_methods[advantage_method]
+        self._roll_advantage_dice = advantage_methods[advantage_method]
 
         # CONSTANTS
+        self._advantage_symbol = "^"
+        self._disadvantage_symbol = "v"
+
         # Generate the regex functions used to parse dice inputs.
         patterns = {
             "count": "^\\d+",
             "sides": "d\\d*",
             "exploding": "e\\d*",
-            "advantage": "\\++",
-            "disadvantage": "\\-+",
+            "advantage": f"[//{self._advantage_symbol}{self._disadvantage_symbol}]",
         }
         self._regex_funcs = {}
         for parameter, pattern in patterns.items():
@@ -54,7 +59,6 @@ class Roller:
             "sides": ((operator.ne, 1, Exception),),
             "exploding": ((operator.gt, 1, Exception), (operator.ne, 1, False)),
             "advantage": ((operator.eq, 0, False),),
-            "disadvantage": ((operator.eq, 0, False),),
         }
 
         # Default values for each parameter.
@@ -63,7 +67,6 @@ class Roller:
             "sides": 0,
             "exploding": math.inf,
             "advantage": 0,
-            "disadvantage": 0,
         }
 
         # Functions used to process regex search results for each parameter.
@@ -71,8 +74,7 @@ class Roller:
             "count": lambda x: int(x[0]),
             "sides": lambda x: self._extract_int(x[0]),
             "exploding": lambda x: self._extract_int(x[0]),
-            "advantage": lambda x: len(x),
-            "disadvantage": lambda x: len(x),
+            "advantage": lambda x: self._determine_advantage(x),
         }
 
     def pool(self, dice_input: str) -> list[int]:
@@ -90,8 +92,55 @@ class Roller:
         return sum(self._roll(*dice.values()))
 
     def _roll(self, count: int, sides: int, exploding: int | float,
-              advantage: int, disadvantage: int) -> list[int]:
-        pass
+              advantage: int) -> list[int]:
+        """
+        Ths is where the magic happens.
+        """
+        if exploding < math.inf:
+            roll = self._roll_exploding_dice(count, sides, exploding)
+        elif advantage:
+            # noinspection PyArgumentList
+            roll = self._roll_advantage_dice(count, sides, advantage)
+        else:
+            roll = self._basic_roll(count, sides)
+        return roll
+
+    def _roll_exploding_dice(self, count: int, sides: int, exploding: int | float
+                             ) -> list[int]:
+        """
+        Roll dice that explode (causing a bonus dice to be rolled) whenever
+        a die meets or exceeds a set value.
+        """
+        roll = self._basic_roll(count, sides)
+        explosion_dice = []
+        for value in roll:
+            if value >= exploding:
+                extra_dice = self._basic_roll(1, sides)
+                while extra_dice[-1] >= exploding:
+                    extra_dice += self._basic_roll(1, sides)
+                explosion_dice += extra_dice
+        return roll + explosion_dice
+
+    def _add_dice_adv(self, count: int, sides: int, advantage: int) -> list[int]:
+        """
+        Advantage implementation where n dice are added, and the highest/lowest
+        n dice are kept.
+        """
+        roll = self._basic_roll(count + (abs_adv := abs(advantage)), sides)
+        reverse = True if advantage < 0 else False
+        return sorted(roll, reverse=reverse)[abs_adv:]
+
+    def _roll_all_adv(self, count: int, sides: int, advantage: int) -> list[int]:
+        """
+        Advantage implementation where all dice are rolled n times, and list
+        with the greatest/lowest sum is chosen.
+        """
+        rolls = []
+        for _ in range(abs(advantage)):
+            rolls.append(self._basic_roll(count, sides))
+
+        reverse = True if advantage > 0 else False
+        return sorted(rolls, key=sum, reverse=reverse)[0]
 
     def _parse_dice(self, dice_input: str) -> dict:
         """
@@ -122,7 +171,7 @@ class Roller:
 
         # Now that we know our dice values, we check them to make sure
         # No illegal values are present.
-        self._values_are_valid(dice["sides"], dice["count"], dice["exploding"])
+        self._values_are_valid(dice)
 
         return dice
 
@@ -146,17 +195,20 @@ class Roller:
         return True
 
     @staticmethod
-    def _values_are_valid(sides: int, count: int, exploding: int | float) -> None:
+    def _values_are_valid(dice: dict[str, int | None]) -> None:
         """
         Raises an exception if the dice parameters sides, count, or exploding
         have fatal issues with their values.
         """
-        if sides <= 0:
-            raise ValueError(f"sides must be greater than zero: {sides=}")
-        elif count <= 0:
-            raise ValueError(f"count must be greater than zero: {count=}")
-        elif exploding <= 1:
-            raise ValueError(f"Exploding value must be greater than 1: {exploding=}")
+        if dice["sides"] <= 0:
+            raise ValueError(f"sides must be greater than zero: {dice["sides"]=}")
+        elif dice["count"] <= 0:
+            raise ValueError(f"count must be greater than zero: {dice["count"]=}")
+        elif dice["exploding"] <= 1:
+            raise ValueError(f"Exploding value must be greater than 1: {dice["exploding"]=}")
+        elif dice["exploding"] < math.inf and dice["advantage"] != 0:
+            raise ValueError(f"Exploding dice arguments and advantage cannot both "
+                             f"be used for the same input.")
 
     @staticmethod
     def _extract_int(substring: str) -> int:
@@ -168,10 +220,26 @@ class Roller:
         search = regex.findall(substring)
         return int("".join(search))
 
+    def _determine_advantage(self, search_result: list[str]) -> int:
+        """
+        Count the advantage and disadvantage symbols present in the search
+        result, subtract the number of advantage symbols from the number of
+        disadvantage symbols and return the resulting int.
+        """
+        advantage = 0
+        for symbol in search_result:
+            if symbol == self._advantage_symbol:
+                advantage += 1
+            elif symbol == self._disadvantage_symbol:
+                advantage -= 1
+            else:
+                raise ValueError(f"Invalid symbol: {symbol}")
+        return advantage
+
 
 class FastRoller(Roller):
     """
-    A diceroller that parses dice once during init, for use explicitly in
+    A die roller that parses dice once during init, for use explicitly in
     programs that would loop a large number of times, rolling the same type of
     dice repeatedly. Going through the parsing phase every time would be
     wasteful. I wonder if it'll be a lot faster?
