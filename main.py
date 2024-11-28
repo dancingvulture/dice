@@ -1,22 +1,89 @@
 """Tests for the dice module."""
 
 
-from source.dice import Roller
+from tests.unit import unit_test
+from tests.speed import fast_roller_speed_test
+from tests.array import RandomArrayTest
+import argparse
 
 
-def unit_test():
-    dice_inputs = ['1d20', '1d100', '3d6', '1d20^', '1d20v', '4d33', '1d4e4',
-                   '8d6e6', '2d6^^', '1d66e50', '1d666', '5d6^^', '8d8vvvv',
-                   "d20", "1d10^v", "1d6^^^^^^", "1d6vvvvvv", "3d2e2", "2d4^"]
-    roller = Roller()
-    for inp in dice_inputs:
-        roll = roller.pool(inp)
-        sum_ = sum(roll)
-        print(f"{inp}: {roll}: {sum_}")
+def parse_arguments() -> dict.items:
+    """
+    Parse command-line arguments.
+    """
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(dest="mode")
+
+    # Unit test
+    unit_test_parser = subparsers.add_parser(
+        "unit",
+        help="Unit test for Roller",
+    )
+
+    # Fast roller speed test
+    fast_roller_parser = subparsers.add_parser(
+        "fast",
+        help="Test how the FastRoller performs vs the normal one.",
+    )
+    fast_roller_parser.add_argument(
+        "dice",
+        help="Dice input for dice roller.",
+    )
+    fast_roller_parser.add_argument(
+        "trials",
+        type=lambda x: int(float(x)),
+    )
+
+    # Numpy v Python
+    numpy_parser = subparsers.add_parser(
+        "array",
+        help="Compare how the builtin randint method performs against numpy's"
+             " for various array sizes.",
+    )
+    numpy_parser.add_argument(
+        "array_sizes",
+        help="Put in a list, 1,2,3, or range 4-8; or a combination.",
+        type=lambda x: _parse_range(x)
+    )
+    numpy_parser.add_argument(
+        "trials",
+        help="Number of trials per array size.",
+        type=lambda x: int(float(x)),
+    )
+
+    args = parser.parse_args()
+    return vars(args).values()
+
+
+def _parse_range(inp: str) -> list[int]:
+    """
+    Meant to parse a command-line input that denotes a list of integers.
+    Syntax is similar to page numbers, (i.e. 1-3,4,6,7).
+    """
+    step_list = []
+    for piece in inp.split(","):
+        if "-" in piece:
+            start, stop = map(int, piece.split("-"))
+            step_list.extend(range(start, stop + 1))
+        else:
+            step_list.append(int(piece))
+    return step_list
 
 
 def main():
-    unit_test()
+    mode, *args = parse_arguments()
+
+    if mode == "unit":
+        unit_test()
+    elif mode == "fast":
+        fast_roller_speed_test(*args)
+    elif mode == "array":
+        test = RandomArrayTest(*args)
+        test.generate_data()
+        test.save_to_csv()
+        print("Saved to file!")
+    else:
+        raise ValueError(f"Invalid mode: {mode}")
 
 
 if __name__ == "__main__":
