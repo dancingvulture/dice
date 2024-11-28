@@ -3,6 +3,7 @@ dev.sh
 /.venv/
 /__pycache__/
 /source/__pycache__/
+/tests/__pycache__/
 
 # Pycharm
 /.idea/
