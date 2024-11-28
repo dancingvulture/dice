@@ -244,3 +244,14 @@ class FastRoller(Roller):
     dice repeatedly. Going through the parsing phase every time would be
     wasteful. I wonder if it'll be a lot faster?
     """
+    def __init__(self, dice_input, *, randint_method=None, advantage_method=None):
+        super().__init__( randint_method=randint_method,
+                          advantage_method=advantage_method)
+        self._dice = self._parse_dice(dice_input)
+
+    def pool(self) -> list:
+        return self._roll(*self._dice.values())
+
+    def sum(self) -> int:
+        return sum(self._roll(*self._dice.values()))
+
