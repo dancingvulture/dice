@@ -86,7 +86,7 @@ class Roller:
 
     def sum(self, dice_input: str) -> int:
         """
-        Roll the dice, then add them all together.
+        Roll the dice then add them all together.
         """
         dice = self._parse_dice(dice_input)
         return sum(self._roll(*dice.values()))
@@ -245,13 +245,35 @@ class FastRoller(Roller):
     wasteful. I wonder if it'll be a lot faster?
     """
     def __init__(self, dice_input, *, randint_method=None, advantage_method=None):
-        super().__init__( randint_method=randint_method,
-                          advantage_method=advantage_method)
+        if self._get_dice_count(dice_input) >= 20:  # Testing on laptop shows this is the point
+            randint_method = "numpy"                # where it becomes more efficient than the
+                                                    # builtin method.
+        super().__init__(randint_method=randint_method,
+                         advantage_method=advantage_method)
         self._dice = self._parse_dice(dice_input)
 
     def pool(self) -> list:
+        """
+        Roll the dice, get the result as a list. Takes no arguments.
+        """
         return self._roll(*self._dice.values())
 
     def sum(self) -> int:
+        """
+        Roll the dice then add them all together. Takes no arguments.
+        """
         return sum(self._roll(*self._dice.values()))
+
+    @staticmethod
+    def _get_dice_count(dice_input: str) -> int:
+        """
+        Get the dice count from dice input. This is dumber than parse
+        dice, if it finds no match it assumes there is only one die.
+        """
+        match = re.compile("^\\d+").search(dice_input)
+        if match is None:
+            return 1
+        else:
+            slc = slice(*match.span())
+            return int(dice_input[slc])
 

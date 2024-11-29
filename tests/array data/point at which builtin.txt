@@ -1,0 +1,6 @@
+point at which builtin takes longer than numpy
+data: 19, 20, 20, 20, 20, 19, 20, 20, 21, 19
+median: 20
+mean: 19.8
+
+data gathered on ubuntu laptop. data is notably much less noisy than the windows work laptop, probably on account of there being way less programs running in the background.

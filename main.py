@@ -19,6 +19,11 @@ def parse_arguments() -> dict.items:
         "unit",
         help="Unit test for Roller",
     )
+    unit_test_parser.add_argument(
+        "roller",
+        help="Which roller to run the unit test on.",
+        choices=["base", "fast"],
+    )
 
     # Fast roller speed test
     fast_roller_parser = subparsers.add_parser(
@@ -74,7 +79,7 @@ def main():
     mode, *args = parse_arguments()
 
     if mode == "unit":
-        unit_test()
+        unit_test(*args)
     elif mode == "fast":
         fast_roller_speed_test(*args)
     elif mode == "array":
