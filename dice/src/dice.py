@@ -276,6 +276,7 @@ class Roller:
         # Then we handle some exceptional situations.
         if "count" not in dice: dice["count"] = 1  # Only parameter with a default value.
         if "advantage" in dice and dice["advantage"] == 0: del dice["advantage"]
+        if "target" in dice and "advantage" not in dice: del dice["target"]
 
         self._values_are_valid(dice)
 
@@ -303,7 +304,8 @@ class Roller:
             raise ValueError(f"Exploding dice arguments and advantage cannot both "
                              f"be used for the same input.")
 
-        if self._advantage_method == "whitehack" and "target" not in dice:
+        if (self._advantage_method == "whitehack" and "advantage" in dice 
+            and "target" not in dice):
             raise ValueError("If using whitehack's advantage method you must"
                              " specify a target.")
 
