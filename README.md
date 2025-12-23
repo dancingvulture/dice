@@ -15,4 +15,4 @@
 - Add to Pypi.
 - Fix the way tests interact with the roller (should import dice and use the interface in `__init__`).
 - Figure out if having `main` makes sense.
-- 
+- Implimenting kwargs has caused some headaches, I should probably handle making sure that the dice dict has only exactly the information needed for its chosen roller in a more systematic way. Maybe with a function that compares the dice dict's paramters with the chosen roller's expected parameters, and trims out the parameters we don't need.
