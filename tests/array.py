@@ -3,7 +3,7 @@ import csv
 from rich.progress import Progress
 import numpy as np
 from datetime import datetime
-from source.dice import Roller
+from dice.src.dice import Roller
 
 
 class RandomArrayTest:

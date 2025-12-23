@@ -1,4 +1,4 @@
-from source.dice import Roller, FastRoller
+from dice.src.dice import Roller, FastRoller
 
 
 def unit_test(roller: str) -> None:

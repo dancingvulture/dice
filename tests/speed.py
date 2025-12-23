@@ -1,6 +1,6 @@
 from rich.progress import Progress
 from datetime import datetime
-from source.dice import Roller, FastRoller
+from dice.src.dice import Roller, FastRoller
 
 
 def fast_roller_speed_test(dice_input: str, trials: int) -> None:
