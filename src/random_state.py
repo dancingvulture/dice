@@ -40,7 +40,7 @@ def save(state=None) -> None:
     with shelve.open(_SHELF_NAME) as db:
         key = str(len(db))
         db[key] = ((time := datetime.now()), state)
-    print(f"Saved random state at time {time}")
+    print(f"Saved random state #{key} at time {time}")
 
 
 def load(key=None, set_state=True):
