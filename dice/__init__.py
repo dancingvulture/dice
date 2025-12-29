@@ -4,18 +4,15 @@ its methods, without having to init this class inside the program using it.
 """
 
 
-# help() assumes any non-public function has _ in front of it.
-from copy import deepcopy as _deepcopy
-from dice.src.dice import Roller as _Roller
+from copy import deepcopy as deepcopy
+import inspect
+from typing import Any
+
+from dice.src.dice import Roller as Roller
 
 
-_ROLLER = _Roller()
-_DEFAULT_SETTINGS = {
-    "randint_method": "builtin-randint",
-    "advantage_method": "add-dice",
-    "roll_method": "roll-over",
-}
-_SETTINGS = _deepcopy(_DEFAULT_SETTINGS)
+__ALL__ = ["pool", "sum", "show_settings", "change_settings", "get_roller",
+           "help"]
 
 
 def pool(dice_input: str, **kwargs) -> list[int]:
@@ -32,8 +29,12 @@ def show_settings() -> None:
     """Show the current Roller settings."""
     display = ""
     for setting, value in _SETTINGS.items():
-        display += f"{setting}: {value}\n"
-    print(display)
+        display += f"{setting}: "
+        if isinstance(value, str):
+            display += f"'{value}'\n"
+        else:
+            display += f"{value}\n"
+    print(display, end="")
 
 
 def change_settings(**kwargs) -> None:
@@ -42,29 +43,13 @@ def change_settings(**kwargs) -> None:
     for key_word, value in kwargs.items():
         _SETTINGS[key_word] = value
 
-    _ROLLER = _Roller(**_SETTINGS)
+    _ROLLER = Roller(**_SETTINGS)
 
 
-def _is_public_name(name: str) -> bool:
-    """
-    Determines if a name is public.
-    """
-    if name[0] == "_" or name == "src":
-        return False
-    else:
-        return True
-
-
-def get_roller(**kwargs) -> _Roller:
+def get_roller(**kwargs) -> Roller:
     """Put in some settings, and get a roller instance back."""
-    settings = _deepcopy(_DEFAULT_SETTINGS) | kwargs
-    return _Roller(**settings)
-
-
-_ALL_FUNCTION_NAMES = filter(_is_public_name, dir())
-_ALL_HELP_TEXT = {"sum": "", "pool": ""}  # Making sure pool/sum are inserted first.
-for _func_name in _ALL_FUNCTION_NAMES:
-    _ALL_HELP_TEXT[_func_name] = locals()[_func_name].__doc__
+    settings = deepcopy(_DEFAULT_SETTINGS) | kwargs
+    return Roller(**settings)
 
 
 def help() -> None:
@@ -74,3 +59,24 @@ def help() -> None:
     for func_name, help_text in _ALL_HELP_TEXT.items():
         display += f"    - dice.{func_name}(): {help_text}\n"
     print(display)
+
+
+def _get_default_settings() -> dict[str, Any]:
+    """
+    Grab the default settings for all keyword arguments for Roller.
+    """
+    parameters = inspect.signature(Roller).parameters
+    settings = {}
+    for para in parameters.values():
+        settings[para.name] = para.default
+    return settings
+
+
+_DEFAULT_SETTINGS = _get_default_settings()
+_SETTINGS = deepcopy(_DEFAULT_SETTINGS)
+_ROLLER = Roller()
+
+_ALL_HELP_TEXT = {"sum": "", "pool": ""}  # Making sure pool/sum are inserted first.
+for _func_name in __ALL__:
+    _ALL_HELP_TEXT[_func_name] = locals()[_func_name].__doc__
+

@@ -13,12 +13,13 @@ class Roller:
     A die roller that can take readable string inputs ('1d20', '3d6', etc.)
     into its rolling methods (sum or pool). It uses the following syntax:
 
-        [count]d[sides][exploding][advantage][disadvantage][>][target]
+        [count]d[sides][e][exploding][advantage][disadvantage][>][target]
 
         - [count] Number of dice to roll, if not entered it default to 1.
         - [sides] Number of sides the dice has.
         - [exploding] exploding dice, where X is the number a result must be
-          equal to or greater than in order to explode.
+          equal to or greater than in order to explode. You must include the [e]
+          token to indicate X is the exploding number.
         - [advantage] one advantage for every ^ symbol.
         - [disadvantage] one disadvantage for every v symbol.
         - [>] include this symbol only if a target is also specified.
@@ -31,8 +32,8 @@ class Roller:
         - [exploding] and [advantage/disadvantage] are mutually exclusive,
           rolling with both is not currently supported.
     """
-    def __init__(self, randint_method="builtin-randint", advantage_method="add-dice",
-                 roll_method="roll-over"):
+    def __init__(self, randint_method="builtin-randint",
+                 advantage_method="add-dice", roll_method="roll-over"):
         # PREFERENCES
         self._randint_method = randint_method
         self._random_generators = {
@@ -105,7 +106,7 @@ class Roller:
             "advantage": (
                 (operator.ne, 0),
                 "advantage shouldn't be in the dice dict if it's equal to zero"
-            )
+            ),
         }
 
     def pool(self, dice_input: str, **kwargs) -> list[int]:
@@ -261,6 +262,7 @@ class Roller:
         # then we take whatever results (if any) from dice_input and process
         # the results with each one's dedicated processing function.
         dice = deepcopy(kwargs)
+        self._convert_disadvantage(dice)
         for parameter, results in search_results.items():
             func = self._processing_funcs[parameter]
 
@@ -270,8 +272,7 @@ class Roller:
             if results and parameter not in kwargs:
                 dice[parameter] = func(results)
 
-        # Now that we know our dice values, we check them to make sure
-        # No illegal values are present.
+
 
         # Then we handle some exceptional situations.
         if "count" not in dice: dice["count"] = 1  # Only parameter with a default value.
@@ -334,6 +335,16 @@ class Roller:
             else:
                 raise ValueError(f"Invalid symbol: {symbol}")
         return advantage
+
+    @staticmethod
+    def _convert_disadvantage(dice_dict: dict[str, int]):
+        """
+        Converts disadvantage to negative advantage. Specifically to handle
+        when the disadvantage keyword argument is passed into the function.
+        """
+        if "disadvantage" in dice_dict:
+            advantage = -1 * dice_dict.pop("disadvantage")
+            dice_dict["advantage"] = advantage
 
 
 class FastRoller(Roller):
