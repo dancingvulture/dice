@@ -1,5 +1,4 @@
 # Local developer files
-dev.sh
 /.venv/
 __pycache__/
 /.idea/
@@ -7,6 +6,4 @@ aliases.sh
 
 # Project specific files
 /saved random states
-
-
 
